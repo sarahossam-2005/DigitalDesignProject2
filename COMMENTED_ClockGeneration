@@ -1,0 +1,62 @@
+
+module ClockGeneration(
+	input reset,
+	input clk,
+	input frame_clk,
+
+//the clocks for the seven-segment, pixels, and game 
+	output pixel_clk,
+	output game_clk,
+	output sevseg_clk
+);
+
+//counters to generate the clock
+reg[1:0] pixel_clk_counter;
+reg[1:0] game_clk_counter;
+reg[17:0] sevseg_clk_counter;
+
+//We chose 1,1,and 17 to make the clocks as slow as possible without making them too slow
+assign pixel_clk = pixel_clk_counter[1];
+assign game_clk = game_clk_counter[1];
+assign sevseg_clk = sevseg_clk_counter[17];
+
+
+always @(posedge clk or posedge reset)
+begin
+//counter resets to 0 if reset 
+	if (reset) begin
+		pixel_clk_counter <= 0;
+	end
+//otherwise, increment the pixel counter
+	else begin
+		pixel_clk_counter <= pixel_clk_counter + 1;
+	end
+end
+
+
+always @(posedge frame_clk or posedge reset)
+begin
+//counter resets if reset is 1 
+	if (reset) begin
+		game_clk_counter <= 0;
+	end
+	else begin
+//othewise, increment the game counter
+		game_clk_counter <= game_clk_counter + 1;
+	end
+end
+
+
+always @(posedge clk or posedge reset)
+begin
+//if reset=1, reset the seven segment clock counter
+	if (reset) begin
+		sevseg_clk_counter <= 0;
+	end
+	else begin
+//oterwise, we increment
+		sevseg_clk_counter <= sevseg_clk_counter + 1;
+	end
+end
+
+endmodule
