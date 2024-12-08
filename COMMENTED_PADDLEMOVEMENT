@@ -1,0 +1,67 @@
+module PaddleMovement(
+// Current positions of paddles for player 1 and player 2
+    input[$clog2(GAME_HEIGHT):0] paddle1_pos_in,
+    input[$clog2(GAME_HEIGHT):0] paddle2_pos_in,
+    
+// Updated positions of paddles for player 1 and player 2
+    output reg[$clog2(GAME_HEIGHT):0] paddle1_pos_out,
+    output reg[$clog2(GAME_HEIGHT):0] paddle2_pos_out,
+
+// up and down movement for player1
+    input player1_up,
+    input player1_down,
+// up and down movement for player 2 
+    input player2_up,
+    input player2_down
+);
+
+
+parameter GAME_HEIGHT = 480/8;
+parameter PADDLE_WIDTH = 15; 
+parameter PADDLE_SPEED = 1;
+
+always @ (player1_up or player1_down or paddle1_pos_in) begin
+// paddle 1 
+    if (player1_up && !player1_down) begin
+        // Move the paddle up
+        paddle1_pos_out = paddle1_pos_in - PADDLE_SPEED;
+        // Ensure the paddle does not move above the top boundary
+        if (paddle1_pos_out < PADDLE_WIDTH/2)
+            paddle1_pos_out = PADDLE_WIDTH/2;
+    end
+    else if (!player1_up && player1_down) begin
+        // Move the paddle down
+        paddle1_pos_out = paddle1_pos_in + PADDLE_SPEED;
+        // Ensure the paddle does not move below the bottom boundary
+        if (paddle1_pos_out > (GAME_HEIGHT-PADDLE_WIDTH/2))
+            paddle1_pos_out = GAME_HEIGHT-PADDLE_WIDTH/2;
+    end
+    else begin
+        // If no input, maintain current position
+        paddle1_pos_out = paddle1_pos_in;
+    end
+end
+
+always @ (player2_up or player2_down or paddle2_pos_in) begin
+// Paddle 2  movement 
+    if (player2_up && !player2_down) begin
+        // Move the paddle up
+        paddle2_pos_out = paddle2_pos_in - PADDLE_SPEED;
+        // Ensure the paddle does not move above the top boundary
+        if (paddle2_pos_out < PADDLE_WIDTH/2)
+            paddle2_pos_out = PADDLE_WIDTH/2;
+    end
+    else if (!player2_up && player2_down) begin
+        // Move the paddle down
+        paddle2_pos_out = paddle2_pos_in + PADDLE_SPEED;
+        // Ensure the paddle does not move below the bottom boundary
+        if (paddle2_pos_out > (GAME_HEIGHT-PADDLE_WIDTH/2))
+            paddle2_pos_out = GAME_HEIGHT-PADDLE_WIDTH/2;
+    end
+    else begin
+        // If no input, maintain current position
+        paddle2_pos_out = paddle2_pos_in;
+    end
+end
+
+endmodule
