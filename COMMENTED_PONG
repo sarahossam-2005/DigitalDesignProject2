@@ -1,0 +1,214 @@
+module pong(
+    input game_en,  // Game enable signal to pause or continue the game
+    input clk,      // System clock
+    input reset,    // Reset signal to initialize or restart the game
+
+    // VGA output signals for red, green, and blue color components
+    output [3:0] VGA_R,
+    output [3:0] VGA_G,
+    output [3:0] VGA_B,
+    output VGA_HS,  // Horizontal sync signal for VGA
+    output VGA_VS,  // Vertical sync signal for VGA
+
+    input P1_Up,    // Player 1 move paddle up
+    input P1_Down,  // Player 1 move paddle down
+    input P2_Up,    // Player 2 move paddle up
+    input P2_Down,  // Player 2 move paddle down
+
+    output [7:0] sevseg,     // 7-segment display output for score
+    output [3:0] sevseg_en   // Enable signal for 7-segment display digits
+);
+
+parameter VGA_WIDTH = 640;   // VGA screen width
+parameter VGA_HEIGHT = 480;  // VGA screen height
+
+parameter GAME_WIDTH = VGA_WIDTH / 8;  // Game resolution width
+parameter GAME_HEIGHT = VGA_HEIGHT / 8;  // Game resolution height
+
+parameter PADDLE_WIDTH = 15;  // Width of the paddles
+parameter MAX_SCORE = 10;     // Maximum score to win the game
+
+parameter PADDLE_SPEED = 1;  // Speed of paddle movement
+parameter BALL_SPEED = 1;    // Speed of ball movement
+
+// Clock signals for different modules
+wire pixel_clk;   // Pixel clock for VGA
+wire frame_clk;   // Frame clock derived from vertical sync
+wire game_clk;    // Game clock for updates
+wire sevseg_clk;  // Clock for 7-segment display updates
+
+// Frame buffer pixel signal
+wire frame_buffer_pixel;  
+
+// Current pixel position from VGA controller
+wire [$clog2(VGA_HEIGHT)-1:0] currentLine;  // Current line being displayed
+wire [$clog2(VGA_WIDTH)-1:0] currentColumn; // Current column being displayed
+
+// Current state of game objects
+wire [$clog2(GAME_HEIGHT)-1:0] paddle1_pos; // Player 1 paddle position
+wire [$clog2(GAME_HEIGHT)-1:0] paddle2_pos; // Player 2 paddle position
+wire [$clog2(GAME_HEIGHT)-1:0] ball_pos_line; // Ball position (line)
+wire [$clog2(GAME_WIDTH)-1:0] ball_pos_column; // Ball position (column)
+wire [1:0] ball_dir; // Ball direction
+wire [$clog2(MAX_SCORE)-1:0] score1; // Player 1 score
+wire [$clog2(MAX_SCORE)-1:0] score2; // Player 2 score
+
+// Updated state after processing
+wire [$clog2(GAME_HEIGHT)-1:0] paddle1_pos_update; 
+wire [$clog2(GAME_HEIGHT)-1:0] paddle2_pos_update;
+wire [$clog2(GAME_HEIGHT)-1:0] ball_pos_line_update;
+wire [$clog2(GAME_WIDTH)-1:0] ball_pos_column_update;
+wire [1:0] ball_dir_update;
+wire [$clog2(MAX_SCORE)-1:0] score1_update;
+wire [$clog2(MAX_SCORE)-1:0] score2_update;
+
+wire scored; // Signal indicating if a player scored
+
+wire VGA_VS_int; // Intermediate vertical sync signal
+assign frame_clk = VGA_VS_int;  // Frame clock based on vertical sync
+assign VGA_VS = VGA_VS_int;    // Forward vertical sync to VGA output
+
+// Instantiate VGA Controller
+VGA #(
+    .VGA_WIDTH(VGA_WIDTH),
+    .VGA_HEIGHT(VGA_HEIGHT)
+) 
+vga_controller(
+    .clk(pixel_clk),
+    .reset(reset),
+
+    .VGA_HS(VGA_HS),
+    .VGA_VS(VGA_VS_int),
+    .VGA_R(VGA_R),
+    .VGA_G(VGA_G),
+    .VGA_B(VGA_B),
+
+    .pixel(frame_buffer_pixel),
+    .currentLine(currentLine),
+    .currentColumn(currentColumn)
+);
+
+// Instantiate Frame Buffer
+FrameBuffer #(
+    .VGA_WIDTH(VGA_WIDTH),
+    .VGA_HEIGHT(VGA_HEIGHT),
+    .GAME_WIDTH(GAME_WIDTH),
+    .GAME_HEIGHT(GAME_HEIGHT),
+    .PADDLE_WIDTH(PADDLE_WIDTH)
+) 
+frame_buffer(
+    .reset(reset),
+    .line(currentLine),
+    .column(currentColumn),
+
+    .pixel(frame_buffer_pixel),
+
+    .paddle1_pos(paddle1_pos),
+    .paddle2_pos(paddle2_pos),
+    .ball_pos_line(ball_pos_line),
+    .ball_pos_column(ball_pos_column),
+    .score1(score1), 
+    .score2(score2)
+);
+
+// Instantiate Game State
+GameState #(
+    .GAME_HEIGHT(GAME_HEIGHT),
+    .GAME_WIDTH(GAME_WIDTH),
+    .MAX_SCORE(MAX_SCORE)
+)
+game_state( 
+    .game_en(game_en),
+    .clk(game_clk),
+    .reset(reset),
+
+    .paddle1_pos(paddle1_pos),
+    .paddle2_pos(paddle2_pos),
+    .ball_pos_line(ball_pos_line),
+    .ball_pos_column(ball_pos_column),
+    .ball_dir(ball_dir),
+    .score1(score1),
+    .score2(score2),
+
+    .paddle1_pos_in(paddle1_pos_update),
+    .paddle2_pos_in(paddle2_pos_update),
+    .ball_pos_line_in(ball_pos_line_update),
+    .ball_pos_column_in(ball_pos_column_update),
+    .ball_dir_in(ball_dir_update),
+    .score1_in(score1_update),
+    .score2_in(score2_update),
+
+    .scored(scored)
+);
+
+// Instantiate Paddle Movement
+PaddleMovement #(
+    .GAME_HEIGHT(GAME_HEIGHT),
+    .PADDLE_WIDTH(PADDLE_WIDTH),
+    .PADDLE_SPEED(PADDLE_SPEED)
+)
+paddle_movement(
+    .paddle1_pos_in(paddle1_pos),
+    .paddle2_pos_in(paddle2_pos),
+
+    .paddle1_pos_out(paddle1_pos_update),
+    .paddle2_pos_out(paddle2_pos_update),
+
+    .player1_up(P1_Up),
+    .player1_down(P1_Down),
+    .player2_up(P2_Up),
+    .player2_down(P2_Down)
+);
+
+// Instantiate Ball Movement
+BallMovement #(
+    .GAME_HEIGHT(GAME_HEIGHT),
+    .GAME_WIDTH(GAME_WIDTH),
+    .MAX_SCORE(MAX_SCORE),
+    .BALL_SPEED(BALL_SPEED),
+    .PADDLE_WIDTH(PADDLE_WIDTH)
+)
+ball_movement(
+    .ball_pos_line_in(ball_pos_line),
+    .ball_pos_column_in(ball_pos_column),
+    .ball_dir_in(ball_dir),
+    .paddle1_pos_in(paddle1_pos),
+    .paddle2_pos_in(paddle2_pos),
+    .score1_in(score1),
+    .score2_in(score2),
+
+    .ball_pos_line_out(ball_pos_line_update),
+    .ball_pos_column_out(ball_pos_column_update),
+    .ball_dir_out(ball_dir_update),
+    .score1_out(score1_update),
+    .score2_out(score2_update),
+    .scored(scored)
+);
+
+// Instantiate Score Controller
+ScoreController #(
+    .MAX_SCORE(MAX_SCORE)
+)
+score_controller(
+    .clk(sevseg_clk),
+    .reset(reset),
+
+    .score1(score1),
+    .score2(score2),
+
+    .sevseg(sevseg),
+    .sevseg_en(sevseg_en)
+);
+
+// Instantiate Clock Generation
+ClockGeneration clock_generation(
+    .reset(reset),
+    .clk(clk),
+    .frame_clk(frame_clk),
+
+    .pixel_clk(pixel_clk),
+    .game_clk(game_clk),
+    .sevseg_clk(sevseg_clk)
+);
+
+endmodule
