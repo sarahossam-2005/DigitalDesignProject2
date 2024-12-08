@@ -1,0 +1,83 @@
+module GameState(
+// Game enable input: controls whether the game is paused (0) or running (1)
+    input game_en,
+// Clock and reset signals
+    input clk,
+    input reset,
+
+// Outputs representing the new states:
+// New positions of the paddles
+    output reg[$clog2(GAME_HEIGHT):0] paddle1_pos,
+    output reg[$clog2(GAME_HEIGHT):0] paddle2_pos,
+// New position and direction of the ball
+    output reg[$clog2(GAME_HEIGHT):0] ball_pos_line,
+    output reg[$clog2(GAME_WIDTH):0] ball_pos_column,
+    output reg[1:0] ball_dir,
+// Updated scores for players 1 and 2
+    output reg[$clog2(MAX_SCORE):0] score1,
+    output reg[$clog2(MAX_SCORE):0] score2,
+
+// Inputs representing the current states:
+// Current positions of the paddles
+    input[$clog2(GAME_HEIGHT):0] paddle1_pos_in,
+    input[$clog2(GAME_HEIGHT):0] paddle2_pos_in,
+// Current position and direction of the ball
+    input[$clog2(GAME_HEIGHT):0] ball_pos_line_in,
+    input[$clog2(GAME_WIDTH):0] ball_pos_column_in,
+    input[1:0] ball_dir_in,
+// Current scores for players 1 and 2
+    input[$clog2(MAX_SCORE):0] score1_in,
+    input[$clog2(MAX_SCORE):0] score2_in,
+// Flag indicating if someone scored
+    input scored
+);
+
+// Parameters for game dimensions and maximum score
+parameter GAME_HEIGHT = 480 / 8; // Number of vertical grid units
+parameter GAME_WIDTH = 640 / 8;  // Number of horizontal grid units
+parameter MAX_SCORE = 10;        // Maximum score to win the game
+
+always @(posedge clk or posedge reset) begin
+    // If reset is active, initialize the game state:
+    // - Center the paddles
+    // - Place the ball at the center of the play area
+    // - Set the ball's direction to the up-right direction (2'b00)
+    // - Reset the scores to 0
+    if (reset) begin
+        paddle1_pos <= GAME_HEIGHT / 2;
+        paddle2_pos <= GAME_HEIGHT / 2;
+        ball_pos_line <= GAME_HEIGHT / 2;
+        ball_pos_column <= GAME_WIDTH / 2;
+        ball_dir <= 2'b00;
+        score1 <= 0;
+        score2 <= 0;
+    end
+    else begin
+        // If reset is not active and the game is enabled:
+        if (game_en) begin
+            // If a score event occurs:
+            // - Reset the game state (center paddles, reposition ball)
+            // - Retain the updated scores
+            if (scored) begin
+                paddle1_pos <= GAME_HEIGHT / 2;
+                paddle2_pos <= GAME_HEIGHT / 2;
+                ball_pos_line <= GAME_HEIGHT / 2;
+                ball_pos_column <= GAME_WIDTH / 2;
+                ball_dir <= 2'b00;
+                score1 <= score1_in;
+                score2 <= score2_in;
+            end
+            else begin
+                // Otherwise, retain the current positions and states
+                paddle1_pos <= paddle1_pos_in;
+                paddle2_pos <= paddle2_pos_in;
+                ball_pos_line <= ball_pos_line_in;
+                ball_pos_column <= ball_pos_column_in;
+                ball_dir <= ball_dir_in;
+                score1 <= score1_in;
+                score2 <= score2_in;
+            end
+        end
+    end
+end
+endmodule
