@@ -1,0 +1,144 @@
+module BallMovement(
+
+    //To determine the position of the ball (both horizontal ane vertical
+    input[$clog2(GAME_HEIGHT):0] ball_pos_line_in,
+    input[$clog2(GAME_WIDTH):0] ball_pos_column_in,
+
+    //The current direction of the ball 
+    input[1:0] ball_dir_in,
+
+    //current positions of the paddles (to detect collision with the paddle later)
+    input[$clog2(GAME_HEIGHT):0] paddle1_pos_in,
+    input[$clog2(GAME_HEIGHT):0] paddle2_pos_in,
+  
+     //The current score 
+    input[$clog2(MAX_SCORE):0] score1_in,
+    input[$clog2(MAX_SCORE):0] score2_in,
+
+    //new position of the ball 
+    output reg[$clog2(GAME_HEIGHT):0] ball_pos_line_out,
+    output reg[$clog2(GAME_WIDTH):0] ball_pos_column_out,
+
+   //new direction of the ball 
+    output reg[1:0] ball_dir_out,
+
+    //new scores 
+    output reg[$clog2(MAX_SCORE):0] score1_out,
+    output reg[$clog2(MAX_SCORE):0] score2_out,
+    output reg scored
+);
+//we set these as parameters to avoid having to change them throughout the code 
+parameter GAME_HEIGHT = 480/8;
+parameter GAME_WIDTH = 640/8;
+parameter MAX_SCORE = 10;
+parameter BALL_SPEED = 1;
+parameter PADDLE_WIDTH = 15;
+
+//combinational logic to describe the ball movement
+always @ (ball_pos_line_in or ball_pos_column_in or ball_dir_in or paddle1_pos_in or paddle2_pos_in) begin
+
+    case(ball_dir_in)
+        2'b00: begin
+//if the direction is up_right 
+            ball_pos_line_out = ball_pos_line_in - BALL_SPEED;
+            ball_pos_column_out = ball_pos_column_in + BALL_SPEED;
+        end
+        2'b01: begin
+//if the direction is down-right
+            ball_pos_line_out = ball_pos_line_in + BALL_SPEED;
+            ball_pos_column_out = ball_pos_column_in + BALL_SPEED;
+        end
+        2'b10: begin
+//if the direction is down-left 
+            ball_pos_line_out = ball_pos_line_in + BALL_SPEED;
+            ball_pos_column_out = ball_pos_column_in - BALL_SPEED;
+        end
+        2'b11: begin
+//if the direction is up-left 
+            ball_pos_line_out = ball_pos_line_in - BALL_SPEED;
+            ball_pos_column_out = ball_pos_column_in - BALL_SPEED;
+        end
+//default case
+        default: begin
+            ball_pos_line_out = ball_pos_line_in;
+            ball_pos_column_out = ball_pos_column_in;
+        end
+    endcase
+
+    if (ball_pos_column_out == 0) begin
+        //Deflect ball if it hits paddle or increase score if it hits wall
+        if (ball_pos_line_out >= paddle1_pos_in - PADDLE_WIDTH/2 && ball_pos_line_out <= paddle1_pos_in + PADDLE_WIDTH/2) begin
+            case(ball_dir_in)
+
+//change the direction only (bounce) 
+                2'b10: ball_dir_out = 2'b01;
+                2'b11: ball_dir_out = 2'b00;
+                default: ball_dir_out = ball_dir_in;
+            endcase
+
+//no change in score 
+            score1_out = score1_in;
+            score2_out = score2_in;
+            scored = 0;
+        end
+
+//else it didn't hit the paddle. It hit the walls
+//increment score of the player
+
+        else begin
+            score1_out = score1_in;
+            score2_out = score2_in + 1;
+            scored = 1;
+            ball_dir_out = ball_dir_in;
+        end
+    end
+    else if (ball_pos_column_out == GAME_WIDTH-1) begin
+        //Deflect ball if it hits paddle or increase score if it hits wall
+        if (ball_pos_line_out >= paddle2_pos_in - PADDLE_WIDTH/2 && ball_pos_line_out <= paddle2_pos_in + PADDLE_WIDTH/2) begin
+            case(ball_dir_in)
+//change direction (bounce) if it hits paddle 
+                2'b00: ball_dir_out = 2'b11;
+                2'b01: ball_dir_out = 2'b10;
+                default: ball_dir_out = ball_dir_in;
+            endcase
+//no change in score 
+            score1_out = score1_in;
+            score2_out = score2_in;
+            scored = 0;
+        end
+//hits the wall, so the player scored 
+        else begin
+            score1_out = score1_in + 1;
+            score2_out = score2_in;
+            scored = 1;
+            ball_dir_out = ball_dir_in;
+        end
+    end
+    else begin
+        score1_out = score1_in;
+        score2_out = score2_in;
+        scored = 0;
+
+//hits upper wall 
+        if (ball_pos_line_out == 0)
+            case(ball_dir_in)
+//changes direction (bounces)
+                2'b00: ball_dir_out = 2'b01;
+                2'b11: ball_dir_out = 2'b10;
+                default: ball_dir_out = ball_dir_in;
+            endcase
+//hits lower wall 
+//changes direction (bounces)
+        else if (ball_pos_line_out == GAME_HEIGHT-1)
+            case(ball_dir_in)
+                2'b01: ball_dir_out = 2'b00;
+                2'b10: ball_dir_out = 2'b11;
+                default: ball_dir_out = ball_dir_in;
+            endcase
+        else
+//if none of that happened, it styas the same
+            ball_dir_out = ball_dir_in;
+    end
+end
+
+endmodule
