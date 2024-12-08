@@ -1,0 +1,92 @@
+module ScoreController(
+    input clk,
+    input reset,
+
+//the score 
+    input[$clog2(MAX_SCORE):0] score1,
+    input[$clog2(MAX_SCORE):0] score2,
+
+//the outputs are the segments and the seven segment enables to choose which display displays which number
+    output [7:0] sevseg,
+    output reg[3:0] sevseg_en
+);
+
+parameter MAX_SCORE = 10;
+
+//current digit from the scores 
+
+//either player 1 tens, player1 units, player2 tens, and player2 units 
+
+reg[3:0] current_digit;
+
+//the segments that will present the current didgit
+reg[6:0] current_digit_segments;
+reg[1:0] current_display;
+
+assign sevseg = {1'b1, current_digit_segments};
+
+always @(posedge clk or posedge reset) begin
+    if (reset) begin
+
+        current_display = 2'b00;
+    end
+    else begin
+        current_display = current_display + 1;
+    end
+end
+
+always @(current_display) begin
+
+//which seven-segment will light up
+
+    case(current_display)
+        2'b00: begin
+// player 1 units
+            current_digit <= score1 % 10;
+            sevseg_en <= 4'b1011;
+        end
+//player 1 tens 
+        2'b01: begin
+            current_digit <= score1 / 10;
+            sevseg_en <= 4'b0111;
+        end
+        2'b10: begin
+//player 2 units 
+            current_digit <= score2 % 10;
+            sevseg_en <= 4'b1110;
+        end
+        2'b11: begin
+//player 2 tens 
+            current_digit <= score2 / 10;
+            sevseg_en <= 4'b1101;
+        end
+//default case 
+        default: begin
+            current_digit <= 4'b0000;
+            sevseg_en <= 4'b1111;
+        end
+    endcase
+end
+
+//segments reprenting ecah digit 
+
+always @(current_digit) begin
+    case(current_digit)
+
+//the segments are active-low 
+
+        4'b0000: current_digit_segments = 7'b1000000;
+        4'b0001: current_digit_segments = 7'b1111001;
+        4'b0010: current_digit_segments = 7'b0100100;
+        4'b0011: current_digit_segments = 7'b0110000;
+        4'b0100: current_digit_segments = 7'b0011001;
+        4'b0101: current_digit_segments = 7'b0010010;
+        4'b0110: current_digit_segments = 7'b0000010;
+        4'b0111: current_digit_segments = 7'b1111000;
+        4'b1000: current_digit_segments = 7'b0000000;
+        4'b1001: current_digit_segments = 7'b0010000;
+        4'b1010: current_digit_segments = 7'b0001000;
+        default: current_digit_segments = 7'b0000000;
+    endcase
+end
+endmodule
