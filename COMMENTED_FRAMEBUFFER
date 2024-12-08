@@ -1,0 +1,260 @@
+module FrameBuffer(
+    input reset,
+
+//row and column 
+
+    input[$clog2(VGA_HEIGHT)-1:0] line,
+    input[$clog2(VGA_WIDTH)-1:0] column,
+
+//0 if black, 1 if white 
+
+    output pixel,
+
+//paddles, ball, scores will be displayed in the frame (they will be the ones in white, and anything else in the frame is black) 
+    input[$clog2(GAME_HEIGHT)-1:0] paddle1_pos,
+    input[$clog2(GAME_HEIGHT)-1:0] paddle2_pos,
+    input[$clog2(GAME_HEIGHT)-1:0] ball_pos_line,
+    input[$clog2(GAME_WIDTH)-1:0] ball_pos_column,
+    input[$clog2(MAX_SCORE)-1:0] score1,
+    input[$clog2(MAX_SCORE)-1:0] score2
+);
+
+//parameters 
+
+parameter VGA_WIDTH = 640;
+parameter VGA_HEIGHT = 480;
+
+parameter GAME_WIDTH = 640/8;
+parameter GAME_HEIGHT = 480/8;
+
+parameter PADDLE_WIDTH = 15;
+
+parameter MAX_SCORE = 10;
+
+wire[$clog2(GAME_HEIGHT)-1:0] game_line = line * GAME_HEIGHT / VGA_HEIGHT;
+wire[$clog2(GAME_WIDTH)-1:0] game_column = column * GAME_WIDTH / VGA_WIDTH;
+
+//wires to check wether the current pixel is a ball, paddle, score since these will be the ones that will be white 
+wire is_ball;
+wire is_paddle1;
+wire is_paddle2;
+reg is_score;
+
+//its a ball if its in the same x and y position of the ball 
+assign is_ball = game_line == ball_pos_line && game_column == ball_pos_column;
+
+//it is a paddle if it was eaither on the riht coundry of the screen or left boundry of the screen and within the width allocated to the paddles 
+assign is_paddle1 = game_column == 0 && (game_line < paddle1_pos + PADDLE_WIDTH/2 && game_line > paddle1_pos - PADDLE_WIDTH/2);
+assign is_paddle2 = game_column == GAME_WIDTH-1 && (game_line < paddle2_pos + PADDLE_WIDTH/2 && game_line > paddle2_pos - PADDLE_WIDTH/2); 
+
+//pixel is one under any of these conditions
+assign pixel = is_ball | is_paddle1 | is_paddle2 | is_score;
+
+//to display text (the scores)
+reg digit_rom[0:9][0:4][0:2];
+always @ (posedge reset) begin
+
+//Pixels to DRaw the score 
+    digit_rom[0][0][0] = 1'b1;
+    digit_rom[0][0][1] = 1'b1;
+    digit_rom[0][0][2] = 1'b1;
+    digit_rom[0][1][0] = 1'b1;
+    digit_rom[0][1][1] = 1'b0;
+    digit_rom[0][1][2] = 1'b1;
+    digit_rom[0][2][0] = 1'b1;
+    digit_rom[0][2][1] = 1'b0;
+    digit_rom[0][2][2] = 1'b1;
+    digit_rom[0][3][0] = 1'b1;
+    digit_rom[0][3][1] = 1'b0;
+    digit_rom[0][3][2] = 1'b1;
+    digit_rom[0][4][0] = 1'b1;
+    digit_rom[0][4][1] = 1'b1;
+    digit_rom[0][4][2] = 1'b1;
+
+    digit_rom[1][0][0] = 1'b0;
+    digit_rom[1][0][1] = 1'b1;
+    digit_rom[1][0][2] = 1'b0;
+    digit_rom[1][1][0] = 1'b1;
+    digit_rom[1][1][1] = 1'b1;
+    digit_rom[1][1][2] = 1'b0;
+    digit_rom[1][2][0] = 1'b0;
+    digit_rom[1][2][1] = 1'b1;
+    digit_rom[1][2][2] = 1'b0;
+    digit_rom[1][3][0] = 1'b0;
+    digit_rom[1][3][1] = 1'b1;
+    digit_rom[1][3][2] = 1'b0;
+    digit_rom[1][4][0] = 1'b1;
+    digit_rom[1][4][1] = 1'b1;
+    digit_rom[1][4][2] = 1'b1;
+
+    digit_rom[2][0][0] = 1'b1;
+    digit_rom[2][0][1] = 1'b1;
+    digit_rom[2][0][2] = 1'b1;
+    digit_rom[2][1][0] = 1'b0;
+    digit_rom[2][1][1] = 1'b0;
+    digit_rom[2][1][2] = 1'b1;
+    digit_rom[2][2][0] = 1'b1;
+    digit_rom[2][2][1] = 1'b1;
+    digit_rom[2][2][2] = 1'b1;
+    digit_rom[2][3][0] = 1'b1;
+    digit_rom[2][3][1] = 1'b0;
+    digit_rom[2][3][2] = 1'b0;
+    digit_rom[2][4][0] = 1'b1;
+    digit_rom[2][4][1] = 1'b1;
+    digit_rom[2][4][2] = 1'b1;
+
+    digit_rom[3][0][0] = 1'b1;
+    digit_rom[3][0][1] = 1'b1;
+    digit_rom[3][0][2] = 1'b1;
+    digit_rom[3][1][0] = 1'b0;
+    digit_rom[3][1][1] = 1'b0;
+    digit_rom[3][1][2] = 1'b1;
+    digit_rom[3][2][0] = 1'b1;
+    digit_rom[3][2][1] = 1'b1;
+    digit_rom[3][2][2] = 1'b1;
+    digit_rom[3][3][0] = 1'b0;
+    digit_rom[3][3][1] = 1'b0;
+    digit_rom[3][3][2] = 1'b1;
+    digit_rom[3][4][0] = 1'b1;
+    digit_rom[3][4][1] = 1'b1;
+    digit_rom[3][4][2] = 1'b1;
+
+    digit_rom[4][0][0] = 1'b1;
+    digit_rom[4][0][1] = 1'b0;
+    digit_rom[4][0][2] = 1'b1;
+    digit_rom[4][1][0] = 1'b1;
+    digit_rom[4][1][1] = 1'b0;
+    digit_rom[4][1][2] = 1'b1;
+    digit_rom[4][2][0] = 1'b1;
+    digit_rom[4][2][1] = 1'b1;
+    digit_rom[4][2][2] = 1'b1;
+    digit_rom[4][3][0] = 1'b0;
+    digit_rom[4][3][1] = 1'b0;
+    digit_rom[4][3][2] = 1'b1;
+    digit_rom[4][4][0] = 1'b0;
+    digit_rom[4][4][1] = 1'b0;
+    digit_rom[4][4][2] = 1'b1;
+
+    digit_rom[5][0][0] = 1'b1;
+    digit_rom[5][0][1] = 1'b1;
+    digit_rom[5][0][2] = 1'b1;
+    digit_rom[5][1][0] = 1'b1;
+    digit_rom[5][1][1] = 1'b0;
+    digit_rom[5][1][2] = 1'b0;
+    digit_rom[5][2][0] = 1'b1;
+    digit_rom[5][2][1] = 1'b1;
+    digit_rom[5][2][2] = 1'b1;
+    digit_rom[5][3][0] = 1'b0;
+    digit_rom[5][3][1] = 1'b0;
+    digit_rom[5][3][2] = 1'b1;
+    digit_rom[5][4][0] = 1'b1;
+    digit_rom[5][4][1] = 1'b1;
+    digit_rom[5][4][2] = 1'b1;
+
+    digit_rom[6][0][0] = 1'b1;
+    digit_rom[6][0][1] = 1'b1;
+    digit_rom[6][0][2] = 1'b1;
+    digit_rom[6][1][0] = 1'b1;
+    digit_rom[6][1][1] = 1'b0;
+    digit_rom[6][1][2] = 1'b0;
+    digit_rom[6][2][0] = 1'b1;
+    digit_rom[6][2][1] = 1'b1;
+    digit_rom[6][2][2] = 1'b1;
+    digit_rom[6][3][0] = 1'b1;
+    digit_rom[6][3][1] = 1'b0;
+    digit_rom[6][3][2] = 1'b1;
+    digit_rom[6][4][0] = 1'b1;
+    digit_rom[6][4][1] = 1'b1;
+    digit_rom[6][4][2] = 1'b1;
+
+    digit_rom[7][0][0] = 1'b1;
+    digit_rom[7][0][1] = 1'b1;
+    digit_rom[7][0][2] = 1'b1;
+    digit_rom[7][1][0] = 1'b0;
+    digit_rom[7][1][1] = 1'b0;
+    digit_rom[7][1][2] = 1'b1;
+    digit_rom[7][2][0] = 1'b0;
+    digit_rom[7][2][1] = 1'b1;
+    digit_rom[7][2][2] = 1'b0;
+    digit_rom[7][3][0] = 1'b0;
+    digit_rom[7][3][1] = 1'b1;
+    digit_rom[7][3][2] = 1'b0;
+    digit_rom[7][4][0] = 1'b1;
+    digit_rom[7][4][1] = 1'b1;
+    digit_rom[7][4][2] = 1'b1;
+
+    digit_rom[8][0][0] = 1'b1;
+    digit_rom[8][0][1] = 1'b1;
+    digit_rom[8][0][2] = 1'b1;
+    digit_rom[8][1][0] = 1'b1;
+    digit_rom[8][1][1] = 1'b0;
+    digit_rom[8][1][2] = 1'b1;
+    digit_rom[8][2][0] = 1'b1;
+    digit_rom[8][2][1] = 1'b1;
+    digit_rom[8][2][2] = 1'b1;
+    digit_rom[8][3][0] = 1'b1;
+    digit_rom[8][3][1] = 1'b0;
+    digit_rom[8][3][2] = 1'b1;
+    digit_rom[8][4][0] = 1'b1;
+    digit_rom[8][4][1] = 1'b1;
+    digit_rom[8][4][2] = 1'b1;
+
+    digit_rom[9][0][0] = 1'b1;
+    digit_rom[9][0][1] = 1'b1;
+    digit_rom[9][0][2] = 1'b1;
+    digit_rom[9][1][0] = 1'b1;
+    digit_rom[9][1][1] = 1'b0;
+    digit_rom[9][1][2] = 1'b1;
+    digit_rom[9][2][0] = 1'b1;
+    digit_rom[9][2][1] = 1'b1;
+    digit_rom[9][2][2] = 1'b1;
+    digit_rom[9][3][0] = 1'b0;
+    digit_rom[9][3][1] = 1'b0;
+    digit_rom[9][3][2] = 1'b1;
+    digit_rom[9][4][0] = 1'b1;
+    digit_rom[9][4][1] = 1'b1;
+    digit_rom[9][4][2] = 1'b1;
+end
+
+
+always @ (game_line or game_column or score1 or score2) begin
+    // Check if the current pixel is within the top 5 lines of the screen
+    if (game_line < 5) begin
+        // Check if the column is near the center of the screen (middle separator)
+        if (game_column > GAME_WIDTH/2 - 2 && game_column < GAME_WIDTH/2 + 2) begin
+            // If the current line is the second line (position for separator display)
+            if (game_line == 2) begin
+                is_score = 1; // Display the middle score separator
+            end
+            else 
+                is_score = 0; // Otherwise, do not display
+        end
+        // Check for the first digit of Player 1's score
+        else if (game_column > GAME_WIDTH/2 - 6 && game_column < GAME_WIDTH/2 - 2) begin
+            // Display the digit from the ROM for the least significant digit of Player 1's score
+            is_score = digit_rom[score1 % 10][game_line][game_column - (GAME_WIDTH/2 - 5)];
+        end
+        // Check for the second digit of Player 1's score
+        else if (game_column > GAME_WIDTH/2 - 10 && game_column < GAME_WIDTH/2 - 6) begin
+            // Display the digit from the ROM for the most significant digit of Player 1's score
+            is_score = digit_rom[score1 / 10][game_line][game_column - (GAME_WIDTH/2 - 9)];
+        end
+        // Check for the second digit of Player 2's score
+        else if (game_column > GAME_WIDTH/2 + 2 && game_column < GAME_WIDTH/2 + 6) begin
+            // Display the digit from the ROM for the most significant digit of Player 2's score
+            is_score = digit_rom[score2 / 10][game_line][game_column - (GAME_WIDTH/2 + 3)];
+        end
+        // Check for the first digit of Player 2's score
+        else if (game_column > GAME_WIDTH/2 + 6 && game_column < GAME_WIDTH/2 + 10) begin
+            // Display the digit from the ROM for the least significant digit of Player 2's score
+            is_score = digit_rom[score2 % 10][game_line][game_column - (GAME_WIDTH/2 + 7)];
+        end
+        else 
+            is_score = 0; // For other columns, no score is displayed
+    end
+    else 
+        is_score = 0; // For lines outside the top 5, no score is displayed
+end
+
+
+endmodule
